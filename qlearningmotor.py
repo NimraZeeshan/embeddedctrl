@@ -1,13 +1,12 @@
 import numpy as np
 import matplotlib.pyplot as plt 
 import time
-# from matplotlib import style
 # import Rpi.GPIO as GPIO
 
 # Parameter Init
 pinPWM = 12 # Pin Number you were using in Raspberry Pi for PWM
 pinRotary = []
-episodeNum = 25000
+episodeNum = 25_000
 rotatePenalty = 1
 destinationReward = 10
 epsilon = 0.95
@@ -20,25 +19,34 @@ learningRate = 0.3
 discountRate = 0.9
 setPoint = 32 # Choose your DC Motor Speed setpoint (in RPM)
 controlalgorithm = 'qlearn'
-error = np.array([])
+currentError = setPoint
+error = {'present' : [], 
+		 'past'    : [],
+		 'sum'	   : [] }
+timeSampling = 0.001
+pwmResolution = 4096 #Because of raspberry pi 3 has 12bit resolution
 
 class main:
 	def __init__(self):
 		self.pinPWM = pinPWM
 		self.pinRotary = pinRotary
+		self.pwmResolution = pwmResolution
 		self.setPoint = setPoint
 		self.controlalgorithm = controlalgorithm
 	def control(self):
 		if self.controlalgorithm == 'PID':
+			controlout = controller.PID(self, error)
 		elif self.controlalgorithm == 'antiwindup':
+			controlout = controller.antiwindup(self, error)
 		else:
-
+			controlout = controller.qlearn(self, error)
 		return controlout 
 	class controller:
 		def __init__(self):
 			self.pinPWM = self.pinPWM()
 			self.pinRotary = self.pinRotary()
 			self.setPoint = self.setPoint()
+			self.pwmResolution = self.pwmResolution()
 			self.proportionalGain = proportionalGain
 			self.derivativeGain = derivativeGain
 			self.integralGain = integralGain
@@ -47,9 +55,27 @@ class main:
 			self.epsilon = epsilon
 			self.episodeDecay = episodeDecay
 			self.episode = episode
-		def PID(self, error):
-
-			return
+		def PID(self, error, sampling):
+			e = error['present']
+			edot = error['past']
+			esum = error['sum']
+			controlout = self.proportionalGain * e + self.derivativeGain * edot / sampling + self.integralGain * esum * sampling
+			controlout = controlout / self.pwmResolution * 100
+			if controlout > self.pwmResolution:
+				controlout = 100
+			return controlout
+		def antiwindup(self, error, sampling):
+			controlout = PID(error, sampling)
+			e = error['present']
+			if e < 0.001:
+				controlout = 
+			elif:
+				controlout
+			return controlout
+		def qlearn(self, error):
+			return controlout
 	class currentstate:
-		def __init__(self):
-			self.error = 
+		def __init__(self, error):
+			self.error = error
+
+
