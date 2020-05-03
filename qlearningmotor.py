@@ -41,7 +41,7 @@ class main:
 		else:
 			controlout = controller.qlearn(self, error)
 		return controlout 
-	class controller:
+	class controller(main):
 		def __init__(self):
 			self.pinPWM = self.pinPWM()
 			self.pinRotary = self.pinRotary()
@@ -67,14 +67,15 @@ class main:
 		def antiwindup(self, error, sampling):
 			controlout = PID(error, sampling)
 			e = error['present']
-			if e < 0.001:
-				controlout = 
-			elif:
-				controlout
+			# Anti windup logic
+			if e <= 0.001: # when the error near to zero turn off the integral gain
+				controlout = self.proportionalGain * e + self.derivativeGain * edot / sampling 
+			elif: # else act as normal PID 
+				controlout = PID(sampling)
 			return controlout
 		def qlearn(self, error):
 			return controlout
-	class currentstate:
+	class currentstate(main):
 		def __init__(self, error):
 			self.error = error
 
