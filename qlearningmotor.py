@@ -1,19 +1,20 @@
 import numpy as np
 import matplotlib.pyplot as plt 
 import time
+import random
 # import Rpi.GPIO as GPIO
 
 # Parameter Init
 pinPWM = 12 # Pin Number you were using in Raspberry Pi for PWM
 pinRotary = 0
-episodeNum = 25_000
+episodeNum = 4_000
 rotatePenalty = 1
 destinationReward = 10
 epsilon = 0.95
-episodeDecay = 0.5
+decayValue = epsilon / (episodeNum - 1)
 showPlot = 2500 # Will show plot every 2500 episode
 
-startQtable = None
+Q_table_start = np.zeros([128, 2]) # init the q table space, in this plant we have to action either to drive or brake
 
 learningRate = 0.3
 discountRate = 0.9
@@ -52,8 +53,8 @@ class main:
 		else:
 			controlout = self.controller.qlearn(self, error = error)
 		return controlout
-	def currentState(self):
-		return None 
+	def theAgent(self):
+		return error 
 	class controller(main):
 		def PID(self, error, sampling):
 			e = error[0]
@@ -77,6 +78,36 @@ class main:
 				controlout = self.controller.PID(error, sampling)
 			return controlout
 		def qlearn(self, error):
-			return controlout
+			Q_table = Q_table_start
+			rowterm, colterm = 63, 1
+			init_state = ceil(error[0])
+			for x in range(self.episode):
+				stop = False
+				while not stop:
+					if random.uniform(0, 1) < self.epsilon:
+						if random.uniform(0,1) > 0.5:
+							colstate = 1
+						else:
+							colstate = 0
+			   			controlout = Q_table[init_state, colstate]
+					else:
+						colstate = np.argmax(Q_table[init_state, :])
+						controlout = Q_table[init_state, colstate]
+					sensorRead = random.sample(range(1,64), 1) # Replace this with your raspberry pi 3 reading value
+					new_state = ceil(sensorRead - self.setPoint) # this is the new state
+					new_colstate = np.argmax(Q_table[new_state, :])
+					if (init_state == rowterm and colstate == colterm):
+						reward = destinationReward
+						stop = True
+					else:
+						reward = -rotatePenalty
+					now_qvalue = Q_table[init_state, :]
+					maxqnext = Q_table[new_state, new_colstate] 
+					new_qvalue = now_qvalue * (1 - learningRate) + learningRate * (reward + self.discountRate * maxqnext)
+					Q_table[init_state, colstate] = new_qvalue
+					init_state, colstate = new_state, new_colstate
+					if self.episodeNum >= episode >= 1:
+						self.epsilon -= decayValue
 
-
+if __name__ == "__main__":
+    main()
