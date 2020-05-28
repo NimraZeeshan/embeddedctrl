@@ -8,21 +8,28 @@ from time import sleep
 import random
 from math import ceil
 from scipy import signal
-# GPIO.setmode(GPIO.BCM)
-# GPIO.setup(17, GPIO.IN, pull_up_down=GPIO.PUD_UP) 
-# GPIO.setup(18, GPIO.OUT)
-# GPIO.setup(27, GPIO.OUT)
-# GPIO.setup(22, GPIO.OUT)
+from qlearningmotor import env
+from HMI import Ui_HMID
 
+GPIO.setmode(GPIO.BCM)
+GPIO.setup(17, GPIO.IN, pull_up_down=GPIO.PUD_UP) 
+GPIO.setup(18, GPIO.OUT)
+GPIO.setup(27, GPIO.OUT)
+GPIO.setup(22, GPIO.OUT)
+count = 0
 simulationTime = 1000
 encoderCount = 61
 samplingTime = 0.01
+scale = 1 / samplingTime
 setPoint = 500
 pwmResolution = 4096 #Because of raspberry pi 3 has 12bit resolution
 
-def my_callback(channel): 
-	count += 1 
-	return count
+def counterup(channel): 
+	global count
+	if GPIO.input(channel) > 0.5:
+		count += 1
+	else:
+		count += 0
 
 def PID(initError):
 	error = initError[0]
@@ -69,16 +76,18 @@ def motorDirection(direction):
 		GPIO.output(22, 0)
 
 def errorUpdate(lastError, ref):
-	sensorRead = random.randrange(1, 100)#speedConvert()
+	sensorRead = speedConvert() #random.randrange(1, 100)
 	new_state = ceil(ref - sensorRead) # this is the error at instance t+1
 	derror = np.divide((new_state - lastError[1]), samplingTime)
 	sumerror = (lastError[0] + lastError[2]) * samplingTime
 	lastError = np.array([new_state, derror, sumerror])
 	lastError = lastError
+	global count
+	count = 0
 	return lastError, sensorRead
 
 def speedConvert():
-	speedDC = count * 60 / encoderCount
+	speedDC = count * 60 * scale / encoderCount
 	return speedDC
 
 def animate(i):
@@ -86,9 +95,9 @@ def animate(i):
     ln2.set_data(x2, y2)
     return ln1, ln2
 
-# GPIO.add_event_detect(17, GPIO.RISING, callback = my_callback)
+GPIO.add_event_detect(17, GPIO.RISING, callback = counterup)
 
-initReading = 490 #speedConvert()
+initReading = speedConvert()
 
 t = np.linspace(0, simulationTime, simulationTime * 2)
 ref = initReading * np.heaviside(t, 0)
@@ -99,15 +108,16 @@ initError = np.array([setPoint - initReading, 0, 0]) # array include three types
 sensorRead = initReading
 e = np.array([])
 
-for count,x in enumerate(t):
+for ct,x in enumerate(t):
 	scaleOut = antiwindup(initError)
 	y = np.append(y, sensorRead)
 	e = np.append(e, initError[0])
 	u = np.append(u, scaleOut)
 	print(f'control output = {scaleOut}')
 	print()
-    # pwmOut = GPIO.PWM(scaleOut, 1 / samplingTime)
-	initError, sensorRead = errorUpdate(initError, ref[count])
+	pwmOut = GPIO.PWM(scaleOut, 1 / samplingTime)
+	initError, sensorRead = errorUpdate(initError, ref[ct])
+
 	
 plt.figure()
 plt.title('DC Motor Speed Control')
